@@ -1,0 +1,143 @@
+
+
+YOLOv5
+[모델 설명]
+
+R-CNN 계열의 네트워크들은 영상에 물체가 있을 것 같은 후보를 먼저 뽑는다. 후보로 뽑힌 영역들은 classifier의 많은 레이어들을 통과하며 어떤 클래스인지 검열된다. 분류가 끝난  후, Bounding  Box를 다시  정의하고, 중복 검출을 지운 후 박스안을 다시 평가하는 작업을 진행한다. Proposal의 수도 많고 오버헤드도 크기 때문에 속도가 느리다. 이미지를 여러장으로 분할하고 분석하는 R-CNN 모델과 달리 YOLO는 이미지 전체를 한번만 보게 된다. 또한 1-Stage Object Detector로 Region Proposal (탐색 영역 찾기)과 Detection(해당 영역 분류) 두가지 과정을 한번에 처리하는 방법론을 사용한다. 전체 이미지에서 추출한 특징을 Bounding Box를 예측하기 위해 사용한다. 동시에 네트워크는 이미지의 클래스를 예측한다. 영상에서 물체를 찾는 방법에는 두가지가 있는데 Proposal방식과 Grid 방식이다. Proposal 방식은 수많은 제안을 하는 selective search로 시간이 오래 걸린다. YOLO는 grid 방식을 사용하여 속도를 현저하게 높일 수 있었다.  S X S  크기의 grid로 나눈다. grid cell의 개수가 곧 proposal의 수이며 오버헤드가 전혀 없다. 각각의 grid 셀은 Bounding Box와 그 박스들에 대한 점수들을  반환한다. 이 점수는 박스 안에 물체를 포함하고 있는지와 분류한 클래스가 얼마나 맞는지를 반영한다. 각 Bounding Box는 x,y. width, height, 신뢰도 값을 갖는다. 신뢰도는 예측 box와  실제 정답 사이의 IOU를 의미한다. IOU(Intersection Over Union)는 교집합/ 합집합 이라는 뜻으로 모델이 예측한 결과와 GT의 교집합, 합집합을 통해 측정한다. 교집합/합집합으로 계산한다. 이 값들은 모두 (0,1)의 범위로 정규화된다. 하나의 그리드 셀당 클래스 가능성과 박스 가능성 예측을 곱해 셀 하나의 클래스 가능성 세트를 예측한다. 얇은 경계 박스들은 threshold(보통 0.5)보다 작으면 지워진다. 남은 후보 박스들은 NMS알고리즘을 선별하여 걸러진다. YOLO는 7*7개의 그리드 셀에서 각각 2개의 경계박스 후보를 예측한다. 클래스의 신뢰도 점수가 thresh보다 낮은 것은 모두 0으로 셋팅한다. 신뢰도 점수가 낮다면 안에 무엇이 들었을지는 모르지만 최소한 그 클래스는 아닐 것이라고 판단한다. 경계박스 신뢰도 순으로 내림차순 한 다음 두 경계박스의 겹치는 부분이 크다면 신뢰도가 낮은 것을 0으로 지워준다. 겹치는 부분이 별로 없을 경우 다른 물체가 있을 수도 있으므로 그냥 넘어간다. 나머지 클래스에 대해서도 한개씩 같은 작업을 반복해준다. 최종적으로 신뢰점수가 threshold보다 낮은 값은 나중에 지워준다. 아래 수식은 multi-loss function으로 모든 bounding box에 대해 얼마나 오차가 큰지 계산한다. 신버전들은 YOLO모델에 여러 알고리즘을 추가하여 정확도와 속도를 높여 나오고 있다.
+Bag of Freebies와 같이 training cost를 증가시켜 정확도를 높이는 방법들을이 있으며 Data Augmentation, Regularization, Loss Function을 추가, 변형한다. Bag of Specials와 같이 오로지 Inference cost만 증가시켜서 정확도를 높이는 방법들이 있으며 Enhancement of Receptive Field, Feature Intergration, Activation Function, Attention Module, Normalization, Post Processing을 추가, 변형한다.
+
+
+
+
+
+[코드 구성 활용 및 결과]
+설치되어야 하는 환경
+python 3.8
+-베이스
+3.2.2ver matplotlib
+1.18.5ver numpy
+4.1.2ver opencv-python
+5.3.1ver  PyYAML
+1.4.1ver scipy
+1.7.0ver torch
+0.8.1ver torchvision
+4.41.0ver tqdm
+-로깅
+2.4.1ver tensorboard
+-플로팅
+0.11.ver 0searborm
+		-내보내기
+		4.1ver coremltools
+		1.8.1ver onnx
+		0.19.2ver scikit-learn
+
+
+
+
+모델 사이즈에 따른 결과
+사이즈가 작을 수록 속도가 빠르나 정확도는 떨어진다.
+model
+size
+AP(val)
+AP(test)
+AP(50)
+Speed
+(v100)
+FPS
+(v100)
+params
+GFLOPS
+YOLOv5s
+640
+36.8
+36.8
+55.6
+2.2ms
+455
+7.3M
+17.0
+YOLOv5m
+640
+44.5
+44.5
+63.1
+2.9ms
+345
+21.4M
+51.3
+YOLOv5l
+640
+48.1
+48.1
+66.4
+3.8ms
+264
+47.0M
+115.4
+YOLOv5x
+640
+50.1
+50.1
+68.7
+6.0ms
+167
+87.7M
+218.8
+
+
+*AP = 하나의 Class 마다 11가지 recall 값에 따른 Precision의 평균을 낸 것.
+Precision과 Recall은 반비례 관계를 갖기 때문에 Object Detection에서는 AP(Average Precision) 지표를 사용한다. Recall을 0에서 1까지 0.1씩 증가시킬 때 Precision은 필연적으로 감소하는데 각 단위마다 Precision 값을 계산하여 평균을 낸다.
+
+*FPS : 초당 몇 장의 이미지가 처리 가능한지를 나타낸다. 어떤 하드웨어를 사용하였는지, 어떤 size의 이미지를 사용하였는지에 따라 수치가 달라지기 때문에 상대적인 비교만 가능하다는 단점이 있다. 정확도만큼이나 중요한 성능 지표이다. 
+
+GFLOPS : 컴퓨터의 1초당 부동 소수점 연산의 실행 횟수를 10억(=109 ) 단위로 표현한 것.
+
+환경
+CUDA/CUDNN, Python and PyTorch가 installed 되어있는 아래 환경에서 구현가능하다.
+Google Colab and Kaggle
+Google Cloud Deep Learning VM
+Amazon Deep Learning AMI
+Docker Image.
+
+
+구현
+: 해당 소스코드를 이용하여 image, video의 객체 탐지가 가능하다. 
+$ python detect.py --source 0  # webcam
+                            file.jpg  # image 
+                            file.mp4  # video
+                            path/  # directory
+                            path/*.jpg  # glob
+                            rtsp://170.93.143.139/rtplive/470011e600ef003a004ee33696235daa  # rtsp stream
+                            rtmp://192.168.1.105/live/test  # rtmp stream
+                            http://112.50.243.8/PLTV/88888888/224/3221225900/1.m3u8  # http stream
+
+
+: 이미지를 이용하여 추론하면 아래 예시와 같은 결과가 나온다.
+$ python detect.py --source data/images --weights yolov5s.pt --conf 0.25
+
+Namespace(agnostic_nms=False, augment=False, classes=None, conf_thres=0.25, device='', exist_ok=False, img_size=640, iou_thres=0.45, name='exp', project='runs/detect', save_conf=False, save_txt=False, source='data/images/', update=False, view_img=False, weights=['yolov5s.pt'])
+YOLOv5 v4.0-96-g83dc1b4 torch 1.7.0+cu101 CUDA:0 (Tesla V100-SXM2-16GB, 16160.5MB)
+
+Fusing layers... 
+Model Summary: 224 layers, 7266973 parameters, 0 gradients, 17.0 GFLOPS
+image 1/2 /content/yolov5/data/images/bus.jpg: 640x480 4 persons, 1 bus, Done. (0.010s)
+image 2/2 /content/yolov5/data/images/zidane.jpg: 384x640 2 persons, 1 tie, Done. (0.011s)
+Results saved to runs/detect/exp2
+Done. (0.103s)
+
+
+ 아래 명령을 실행하여 repository에 준비된 COCO 데이터셋에 대한 결과 재현이 가능하다.
+s,m,l,x의 교육시간은 단일 테슬라 V100에서 2/4/6/8일 소요된다. 
+다중 GPU의 속도가 더  빠르다. 
+$ python train.py --data coco.yaml --cfg yolov5s.yaml --weights '' --batch-size 64
+                                         yolov5m                                40
+                                         yolov5l                                24
+                                         yolov5x                                16
+
+
+
+모델 사이즈에 따른 훈련 결과
+
+
+활용 예
+ADAS 기능인 차선 유지 운전에 대해 차선 이탈에 대한 성능을 향상 시키고자 YOLO의 빠른 인식을 사용하고 카메라로 부터 주변 환경으로부터 영향을 받는 상황을 인지하고 주행 데이터를 수집하여 관심 영역을 추출하는 차선검출 시스템을 구현할 수 있다. 주행환경 이미지를 수집하여 차등 간격의 조향각을 결정하고 자율주행의 안정성을 높이는데 사용된다. 
